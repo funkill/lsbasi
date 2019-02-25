@@ -1,5 +1,6 @@
 #[derive(Debug, Eq, PartialEq)]
 enum Type {
+    Whitespace,
     Integer,
     Plus,
     Eof,
@@ -12,6 +13,13 @@ struct Token {
 }
 
 impl Token {
+    fn whitespace() -> Token {
+        Token {
+            _type: Type::Whitespace,
+            value: None,
+        }
+    }
+
     fn integer(value: char) -> Token {
         Token {
             _type: Type::Integer,
@@ -52,7 +60,14 @@ impl Interpreter {
     fn tokenize(text: &str) -> Vec<Token> {
         text.chars()
             .into_iter()
-            .map(tokenize)
+            .filter_map(|item| {
+                let token = tokenize(item);
+
+                match token._type {
+                    Type::Whitespace => None,
+                    _ => Some(token),
+                }
+            })
             .collect::<Vec<Token>>()
     }
 }
@@ -60,6 +75,7 @@ impl Interpreter {
 fn tokenize(item: char) -> Token {
     match item {
         item @ '0'...'9' => Token::integer(item),
+        ' ' => Token::whitespace(),
         '+' => Token::plus(),
         '\n' => Token::eof(),
         _ => panic!("Parse error!"),
@@ -170,33 +186,32 @@ mod tokenize_tests {
 mod evaluate_tests {
     use super::Interpreter;
 
-    #[test]
-    fn evaluate() {
-        let res = Interpreter::evaluate("1+2\n");
-        assert_eq!(res, 3);
-    }
-
     macro_rules! add_test {
-        ($($name:ident: $eval:expr,)+) => {
+        ($($name:ident: $eval:expr, result: $res:expr,)+) => {
             $(
                 #[test]
-                #[should_panic]
                 fn $name() {
-                    Interpreter::evaluate($eval);
+                    let result = Interpreter::evaluate($eval);
+                    assert_eq!(result, $res);
                 }
             )+
         };
     }
 
     add_test!(
-        eval_0: " 1+2\n",
-        eval_1: "1 +2\n",
-        eval_2: "1+ 2\n",
-        eval_3: "1+2 \n",
-        eval_4: " 1 +2\n",
-        eval_5: " 1+ 2\n",
-        eval_6: " 1+2 \n",
-        eval_7: "12+2",
+        eval: "1+2\n", result: 3,
+        eval_0: " 1+2\n", result: 3,
+        eval_1: "1 +2\n", result: 3,
+        eval_2: "1+ 2\n", result: 3,
+        eval_3: "1+2 \n", result: 3,
+        eval_4: " 1 +2\n", result: 3,
+        eval_5: " 1+ 2\n", result: 3,
+        eval_6: " 1+2 \n", result: 3,
     );
 
+    #[test]
+    #[should_panic]
+    fn failed_evaluate() {
+        Interpreter::evaluate("12+2\n");
+    }
 }
