@@ -1,4 +1,4 @@
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum Type {
     Whitespace,
     Integer,
@@ -9,7 +9,7 @@ enum Type {
 #[derive(Debug, Eq, PartialEq)]
 struct Token {
     _type: Type,
-    value: Option<char>,
+    value: Option<String>,
 }
 
 impl Token {
@@ -20,7 +20,7 @@ impl Token {
         }
     }
 
-    fn integer(value: char) -> Token {
+    fn integer(value: String) -> Token {
         Token {
             _type: Type::Integer,
             value: Some(value),
@@ -30,7 +30,7 @@ impl Token {
     fn plus() -> Token {
         Token {
             _type: Type::Plus,
-            value: Some('+'),
+            value: Some("+".into()),
         }
     }
 
@@ -53,48 +53,70 @@ impl Interpreter {
         assert_eq!(stream[0]._type, Type::Integer, "Wrong first operand type!");
         assert_eq!(stream[2]._type, Type::Integer, "Wrong second operand type!");
 
-        stream.get(0).unwrap().value.unwrap().to_digit(10).unwrap() as i64
-            + stream.get(2).unwrap().value.unwrap().to_digit(10).unwrap() as i64
+        stream.get(0).unwrap().value.clone().unwrap().parse::<i64>().unwrap()
+            + stream.get(2).unwrap().value.clone().unwrap().parse::<i64>().unwrap()
     }
 
     fn tokenize(text: &str) -> Vec<Token> {
-        text.chars()
-            .into_iter()
-            .filter_map(|item| {
-                let token = tokenize(item);
+        let mut tokens = vec![];
+        let mut chars = text.chars().into_iter().peekable();
 
-                match token._type {
-                    Type::Whitespace => None,
-                    _ => Some(token),
+        while chars.peek() != None {
+            let mut val = String::new();
+            while let Some(curr) = chars.next() {
+                let curr_type = detect_char_type(&curr);
+                if curr_type == Type::Whitespace {
+                    continue;
                 }
-            })
-            .collect::<Vec<Token>>()
+
+                val.push(curr);
+                if let Some(next) = chars.peek() {
+                    let next_type = detect_char_type(&next);
+                    if next_type != curr_type {
+                        let token = Token {
+                            _type: curr_type,
+                            value: Some(val),
+                        };
+                        tokens.push(token);
+                        break;
+                    }
+                } else {
+                    let token = Token {
+                        _type: curr_type,
+                        value: Some(val),
+                    };
+                    tokens.push(token);
+                    break;
+                }
+            }
+        }
+
+        tokens
     }
 }
 
-fn tokenize(item: char) -> Token {
+fn detect_char_type(item: &char) -> Type {
     match item {
-        item @ '0'...'9' => Token::integer(item),
-        ' ' => Token::whitespace(),
-        '+' => Token::plus(),
-        '\n' => Token::eof(),
+        '0'...'9' => Type::Integer,
+        ' ' => Type::Whitespace,
+        '+' => Type::Plus,
+        '\n' => Type::Eof,
         _ => panic!("Parse error!"),
     }
 }
 
 #[cfg(test)]
-mod tokenize_tests {
-    use super::{tokenize, Token, Type};
+mod detect_char_type_tests {
+    use super::{detect_char_type, Type};
 
     macro_rules! add_test {
-        ($({name: $name:ident, parsed: $item:expr, expected_type: $type:expr, expected_value: $value:expr},)+) => {
+        ($({name: $name:ident, parsed: $item:expr, expected_type: $expected:expr},)+) => {
             $(
                 #[test]
                 fn $name() {
-                    let expected = Token { _type: $type, value: $value };
-                    let result = tokenize($item);
+                    let result = detect_char_type(&$item);
 
-                    assert_eq!(result, expected);
+                    assert_eq!(result, $expected);
                 }
             )+
         };
@@ -104,81 +126,69 @@ mod tokenize_tests {
         {
             name: parse_zero,
             parsed: '0',
-            expected_type: Type::Integer,
-            expected_value: Some('0')
+            expected_type: Type::Integer
         },
         {
             name: parse_one,
             parsed: '1',
-            expected_type: Type::Integer,
-            expected_value: Some('1')
+            expected_type: Type::Integer
         },
         {
             name: parse_two,
             parsed: '2',
-            expected_type: Type::Integer,
-            expected_value: Some('2')
+            expected_type: Type::Integer
         },
         {
             name: parse_three,
             parsed: '3',
-            expected_type: Type::Integer,
-            expected_value: Some('3')
+            expected_type: Type::Integer
         },
         {
             name: parse_four,
             parsed: '4',
-            expected_type: Type::Integer,
-            expected_value: Some('4')
+            expected_type: Type::Integer
         },
         {
             name: parse_five,
             parsed: '5',
-            expected_type: Type::Integer,
-            expected_value: Some('5')
+            expected_type: Type::Integer
         },
         {
             name: parse_six,
             parsed: '6',
-            expected_type: Type::Integer,
-            expected_value: Some('6')
+            expected_type: Type::Integer
         },
         {
             name: parse_seven,
             parsed: '7',
-            expected_type: Type::Integer,
-            expected_value: Some('7')
+            expected_type: Type::Integer
         },
         {
             name: parse_eight,
             parsed: '8',
-            expected_type: Type::Integer,
-            expected_value: Some('8')
+            expected_type: Type::Integer
         },
         {
             name: parse_nine,
             parsed: '9',
-            expected_type: Type::Integer,
-            expected_value: Some('9')
+            expected_type: Type::Integer
         },
         {
             name: parse_plus,
             parsed: '+',
-            expected_type: Type::Plus,
-            expected_value: Some('+')
+            expected_type: Type::Plus
         },
         {
             name: parse_eof,
             parsed: '\n',
-            expected_type: Type::Eof,
-            expected_value: None
+            expected_type: Type::Eof
         },
     );
 
     #[test]
     #[should_panic]
     fn parse_wrong_symbol() {
-        tokenize('a');
+        detect_char_type(&'a');
     }
 }
 
@@ -207,11 +217,7 @@ mod evaluate_tests {
         eval_4: " 1 +2\n", result: 3,
         eval_5: " 1+ 2\n", result: 3,
         eval_6: " 1+2 \n", result: 3,
+        eval_7: "12+2\n", result: 14,
     );
 
-    #[test]
-    #[should_panic]
-    fn failed_evaluate() {
-        Interpreter::evaluate("12+2\n");
-    }
 }
