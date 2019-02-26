@@ -2,6 +2,7 @@
 enum Type {
     Whitespace,
     Integer,
+    Minus,
     Plus,
     Eof,
 }
@@ -49,12 +50,17 @@ impl Interpreter {
         let stream = Self::tokenize(text);
         assert_eq!(stream.len(), 4, "Wrong parsing input!");
         assert_eq!(stream[3]._type, Type::Eof, "Wrong end of line!");
-        assert_eq!(stream[1]._type, Type::Plus, "Wrong operation type!");
         assert_eq!(stream[0]._type, Type::Integer, "Wrong first operand type!");
         assert_eq!(stream[2]._type, Type::Integer, "Wrong second operand type!");
 
-        stream.get(0).unwrap().value.clone().unwrap().parse::<i64>().unwrap()
-            + stream.get(2).unwrap().value.clone().unwrap().parse::<i64>().unwrap()
+        let first = stream.get(0).unwrap().value.clone().unwrap().parse::<i64>().unwrap();
+        let second = stream.get(2).unwrap().value.clone().unwrap().parse::<i64>().unwrap();
+
+        match stream.get(1).unwrap()._type.clone() {
+            Type::Plus => first + second,
+            Type::Minus => first - second,
+            _type @ _ => panic!("Unknown operation `{:?}`", _type),
+        }
     }
 
     fn tokenize(text: &str) -> Vec<Token> {
@@ -99,6 +105,7 @@ fn detect_char_type(item: &char) -> Type {
     match item {
         '0'...'9' => Type::Integer,
         ' ' => Type::Whitespace,
+        '-' => Type::Minus,
         '+' => Type::Plus,
         '\n' => Type::Eof,
         _ => panic!("Parse error!"),
@@ -174,6 +181,11 @@ mod detect_char_type_tests {
             expected_type: Type::Integer
         },
         {
+            name: parse_minus,
+            parsed: '-',
+            expected_type: Type::Minus
+        },
+        {
             name: parse_plus,
             parsed: '+',
             expected_type: Type::Plus
@@ -218,6 +230,7 @@ mod evaluate_tests {
         eval_5: " 1+ 2\n", result: 3,
         eval_6: " 1+2 \n", result: 3,
         eval_7: "12+2\n", result: 14,
+        eval_8: "1-2\n", result: -1,
     );
 
 }
