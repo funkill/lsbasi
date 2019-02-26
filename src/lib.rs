@@ -4,6 +4,8 @@ enum Type {
     Integer,
     Minus,
     Plus,
+    Mul,
+    Div,
     Eof,
 }
 
@@ -29,6 +31,11 @@ impl Interpreter {
         match stream.get(1).unwrap()._type.clone() {
             Type::Plus => first + second,
             Type::Minus => first - second,
+            Type::Mul => first * second,
+            Type::Div => {
+                assert_ne!(second, 0, "Division by zero!");
+                first / second
+            },
             _type @ _ => panic!("Unknown operation `{:?}`", _type),
         }
     }
@@ -74,6 +81,8 @@ fn detect_char_type(item: &char) -> Type {
         ' ' => Type::Whitespace,
         '-' => Type::Minus,
         '+' => Type::Plus,
+        '*' => Type::Mul,
+        '/' => Type::Div,
         '\n' => Type::Eof,
         _ => panic!("Parse error!"),
     }
@@ -158,6 +167,16 @@ mod detect_char_type_tests {
             expected_type: Type::Plus
         },
         {
+            name: parse_mul,
+            parsed: '*',
+            expected_type: Type::Mul
+        },
+        {
+            name: parse_div,
+            parsed: '/',
+            expected_type: Type::Div
+        },
+        {
             name: parse_eof,
             parsed: '\n',
             expected_type: Type::Eof
@@ -198,6 +217,14 @@ mod evaluate_tests {
         eval_6: " 1+2 \n", result: 3,
         eval_7: "12+2\n", result: 14,
         eval_8: "1-2\n", result: -1,
+        eval_9: "1*2\n", result: 2,
+        eval_10: "4/2\n", result: 2,
     );
+
+    #[test]
+    #[should_panic]
+    fn check_division_by_zero() {
+        Interpreter::evaluate("1/0");
+    }
 
 }
