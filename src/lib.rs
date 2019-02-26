@@ -13,36 +13,6 @@ struct Token {
     value: Option<String>,
 }
 
-impl Token {
-    fn whitespace() -> Token {
-        Token {
-            _type: Type::Whitespace,
-            value: None,
-        }
-    }
-
-    fn integer(value: String) -> Token {
-        Token {
-            _type: Type::Integer,
-            value: Some(value),
-        }
-    }
-
-    fn plus() -> Token {
-        Token {
-            _type: Type::Plus,
-            value: Some("+".into()),
-        }
-    }
-
-    fn eof() -> Token {
-        Token {
-            _type: Type::Eof,
-            value: None,
-        }
-    }
-}
-
 pub struct Interpreter {}
 
 impl Interpreter {
@@ -76,9 +46,13 @@ impl Interpreter {
                 }
 
                 val.push(curr);
-                if let Some(next) = chars.peek() {
-                    let next_type = detect_char_type(&next);
-                    if next_type != curr_type {
+                match chars
+                    .peek()
+                    .map(detect_char_type)
+                    .filter(|next_type| next_type == &curr_type)
+                {
+                    Some(_) => {}
+                    None => {
                         let token = Token {
                             _type: curr_type,
                             value: Some(val),
@@ -86,13 +60,6 @@ impl Interpreter {
                         tokens.push(token);
                         break;
                     }
-                } else {
-                    let token = Token {
-                        _type: curr_type,
-                        value: Some(val),
-                    };
-                    tokens.push(token);
-                    break;
                 }
             }
         }
