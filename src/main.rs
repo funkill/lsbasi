@@ -8,7 +8,10 @@ fn main() {
         let _ = stdout.flush();
         let mut buf = String::new();
         let _ = stdin.read_line(&mut buf);
-        let result = lsbasi::Interpreter::evaluate(buf.as_str());
-        println!("{}", result);
+        match lsbasi::Interpreter::evaluate(buf.as_str()) {
+            Ok(Some(result)) => println!("{}", result),
+            Ok(None) => {},
+            Err(e) => eprintln!("{}", e),
+        }
     }
 }
